@@ -24,3 +24,9 @@ for position in range(n + 2, (n ** 2) + n):
     if (position % (n + 1) == 0):
         print('')
         
+# way way better solution by p'mew
+    
+# n = int(input("Type ur number :"))
+
+# for i in range(1,n+1) :
+#     print((" "*(n-i)) + ("*"*i))
