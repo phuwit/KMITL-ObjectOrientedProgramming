@@ -16,9 +16,7 @@ n = 10
 n += 1
 
 for position in range(n + 2, (n ** 2) + n):
-    if (position % (n + 1)) == 0:
-        print(' ', end='')
-    elif ((position % (n + 1) + position // (n + 1)) < (n + 1)):
+    if ((position % (n + 1) + position // (n + 1)) < (n + 1)):
         print(' ', end='')
     else:
         print('#', end='')
