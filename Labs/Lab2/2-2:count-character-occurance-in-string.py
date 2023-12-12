@@ -5,3 +5,8 @@
 # – จะได้ d = [2, 3, 1]
 # ให้สร้างเป็น function count_char_in_string(x,c) แล้ว return เป็น List คําตอบ
 
+def count_char_in_string(x, c):
+    return [sum(1 for matched_char in string if matched_char == c) for string in x]
+
+
+print(count_char_in_string(input(), input()))
