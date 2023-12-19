@@ -3,3 +3,12 @@
 # ใน string เช่น
 # Input : 'language'
 # return : {'l': 1, 'a': 2, 'n': 1, 'g': 2, 'e': 1}
+
+
+def char_count(string):
+    character_count = {}
+    for character in string:
+        if not(character_count.get(character)):
+            character_count[character] = 0
+        character_count[character] += 1
+    return character_count

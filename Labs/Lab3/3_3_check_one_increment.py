@@ -7,3 +7,19 @@
 # Input : {1:2, 3:10, 5:6, 7:8}
 # return : False
 # อธิบาย : เพราะ key, value ไม่เป็นไปตามลําดับ
+
+
+def is_plusone_dictionary(dictionary):
+    current_index = -1
+    for key, value in dictionary.items():
+        if (current_index == -1):
+            current_index = key - 1
+        if not (key - current_index == 1):
+            return False
+        if not (value - key == 1):
+            return False
+        current_index = value
+    return True
+
+
+print(is_plusone_dictionary({1:2, 3:4, 5:6, 7:8}))

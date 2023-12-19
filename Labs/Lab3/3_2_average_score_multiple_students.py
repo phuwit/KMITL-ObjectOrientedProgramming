@@ -22,3 +22,42 @@
 # โดยหากชื่อมีข้อมูล key ใดที่มีใน dictionary อยู่แล้ว ให้ถือเป็นการ update ข้อมูลนั้น
 # ให้ refactor ฟังก์ชัน calc_average_score โดยให้ส่งคืนเป็น dictionary ของนักศึกษาและคะแนนเฉลี่ย
 # ของนักศึกษาคนนั้น เช่น {'65010001': '55.00' }
+
+
+test_subject_score = {
+    '66010069': {
+        'math': 0,
+        'physics': 1,
+        'python': 2
+    },
+    '66010420': {
+        'math': 1,
+        'physics': 2,
+        'python': 3
+    },
+    '66010421': {
+        'math': 50,
+        'physics': 2,
+        'python': 3
+    }
+}
+
+
+def add_score(score_list, student_id, subject_name, subject_score):
+    if not (score_list.get(student_id)):
+        score_list[student_id] = {}
+    score_list[student_id][subject_name] = subject_score
+    return score_list
+
+
+def calc_average_score(score_list):
+    student_score_sum = {student_id: [len(score_list) + 1, sum(subject_with_score for (subject, subject_with_score) in subject_with_score.items())]
+                                        for student_id, subject_with_score in score_list.items()}
+    student_mean_score = {student_id: f'{score_sum[1] / score_sum[0]:.2f}' for student_id, score_sum in student_score_sum.items()}
+    return student_mean_score
+
+
+print(test_subject_score)
+add_score(test_subject_score, '66010421','math', 100)
+print(test_subject_score)
+print(calc_average_score(test_subject_score))

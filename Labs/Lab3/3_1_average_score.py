@@ -8,3 +8,21 @@
 # return : { ‘python’ : 50, ‘calculus : 60 }
 # จากนั้นให้เขียนฟังก์ชัน calc_average_score หาค่าเฉลี่ยของคะแนนในทุกรายวิชาใน dictionary ที่ได้จาก
 # ฟังก์ชัน add_score โดยให้ส่งค่าคืนมาเป็น string ที่มีทศนิยม 2 ตําแหน่ง
+
+
+# test_subject_score = {
+#     'math':  0,
+#     'physics': 1,
+#     'python': 2
+# }
+
+
+def add_score(score_list, subject_name, subject_score):
+    score_list[subject_name] = subject_score
+
+
+def calc_average_score(score_list):
+    total_subject, total_score = [len(score_list), sum(score for (subject, score) in score_list.items())]
+    return f'{total_score / total_subject:.2f}'
+
+# print(calc_average_score(test_subject_score))
