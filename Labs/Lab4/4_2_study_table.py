@@ -24,9 +24,6 @@ class Student:
     def __init__(self, student_id, student_name):
         self.id = student_id
         self.name = student_name
-        self.subjects = []
-    def add_subject(self, subject_instance):
-        self.subjects.append(subject_instance)
 
 
 class Subject:
@@ -36,28 +33,41 @@ class Subject:
         self.section = section
         self.credit = credit
         self.students = []
-        # self.teachers = []
+        self.teachers = []
 
     def add_student(self, student_instance):
         self.students.append(student_instance)
+
+    def add_teacher(self, teacher_instance):
+        self.teachers.append(teacher_instance)
 
 
 class Teacher:
     def __init__(self, teacher_id, teacher_name):
         self.id = teacher_id
         self.name = teacher_name
-        self.subjects = []
 
-    def add_subject(self, subject_instance):
-        self.subjects.append(subject_instance)
+
+def get_object_from_list_by_id(id, list):
+    for element in list:
+        if (element.id == id):
+            return element
 
 
 def get_students_from_teacher(teacher):
     matched_students = []
-    for subject in teacher.subjects:
-        matched_students.extend(subject.students)
-
+    for subject in subjects:
+        if teacher in subject.teachers:
+            matched_students.extend(subject.students)
     return matched_students
+
+
+def get_subjects_from_student(student):
+    matched_subjects = []
+    for subject in subjects:
+        if student in subject.students:
+            matched_subjects.append(subject)
+    return matched_subjects
 
 
 students = [
@@ -79,40 +89,41 @@ subjects = [
     Subject(101, "Object Oriented Programming", 2, 3)
 ]
 
-teachers[0].add_subject(subjects[0])
-teachers[1].add_subject(subjects[1])
 
-for student in students:
-    if (student.id % 2 == 1):
-        subject_id = 101
-        subject_section = 1
-    else:
-        subject_id = 101
-        subject_section = 2
+subjects[0].add_teacher(teachers[0])
+subjects[1].add_teacher(teachers[1])
 
-    for subject in subjects:
-        if (subject.id == subject_id) and (subject.section == subject_section):
-            subject.add_student(student)
-            student.add_subject(subject)
+subjects[0].add_student(students[0])
+subjects[0].add_student(students[1])
+subjects[0].add_student(students[2])
+subjects[1].add_student(students[3])
+subjects[1].add_student(students[4])
+subjects[1].add_student(students[5])
 
 
-def search_students_from_teacher_id(teacher_id):
-    for teacher in teachers:
-        if (teacher.id == teacher_id):
-            students_name = []
-            for student in get_students_from_teacher(teacher):
-                students_name.append(student.name)
-            return students_name
+def student_names_from_teacher_id(teacher_id):
+    teacher = get_object_from_list_by_id(teacher_id, teachers)
+    matched_students = get_students_from_teacher(teacher)
+    student_names = []
+    for student in matched_students:
+        student_names.append(student.name)
+    return student_names
 
 
-print(search_students_from_teacher_id(int(input("Get students from teacher id : "))))
+# print(student_names_from_teacher_id(int(input("student_name_from_teacher_id : "))))
+print(student_names_from_teacher_id(1))
+print(student_names_from_teacher_id(2))
 
 
-def search_subject_name_from_student_id(student_id):
-    for student in students:
-        if (student.id == student_id):
-            for subject in student.subjects:
-                return subject.name + str(subject.section)
+def subject_names_from_student_id(student_id):
+    student = get_object_from_list_by_id(student_id, students)
+    matched_subjects = get_subjects_from_student(student)
+    subject_names = []
+    for subject in matched_subjects:
+        subject_names.append(f"{subject.name} {subject.section}")
+    return subject_names
 
 
-print(search_subject_name_from_student_id(int(input("Get subjects from student id : "))))
+print(subject_names_from_student_id(1))
+print(subject_names_from_student_id(4))
+# print(subject_names_from_student_id(int(input("subject_names_from_student_id : "))))
