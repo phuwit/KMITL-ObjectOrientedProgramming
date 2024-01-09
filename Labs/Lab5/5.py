@@ -114,7 +114,7 @@ class Teacher:
     #         return False
         
         
-class Enrollement:
+class Enrollment:
     def __init__(self, student, subject):
         self.__student: Student = student
         self.__subject: Subject = subject
@@ -191,7 +191,7 @@ def enroll_to_subject(student: Student, subject: Subject):
     if (matched_enrollment):
         return 'Already Enrolled'
     else:
-        enrollment_list.append(Enrollement(student, subject))
+        enrollment_list.append(Enrollment(student, subject))
 
 # TODO 4 : function สำหรับลบการลงทะเบียน โดยรับ instance ของ student และ subject
 def drop_from_subject(student: Student, subject: Subject):
@@ -223,7 +223,7 @@ def search_subject_that_student_enrolled(student: Student):
 
 # TODO 8 : function สำหรับใส่เกรดลงในการลงทะเบียน โดยรับ instance ของ student และ subject
 def assign_grade(student: Student, subject: Subject, grade_string: str):
-    matched_enrollment: Enrollement | None = search_enrollment_subject_student(student, subject)
+    matched_enrollment: Enrollment | None = search_enrollment_subject_student(student, subject)
     if matched_enrollment is None:
         return 'Not Found'
     
@@ -300,7 +300,7 @@ def list_subject_enrolled_by_student(student_id: str):
 student_list: list[Student] = []
 subject_list: list[Subject] = []
 teacher_list: list[Teacher] = []
-enrollment_list: list[Enrollement] = []
+enrollment_list: list[Enrollment] = []
 
 #สร้าง instance พื้นฐาน
 def create_instance():
