@@ -50,6 +50,9 @@ class Subject:
     
     def get_teacher(self) -> Teacher:
         return self.__teacher
+    
+    def get_credit(self) -> int:
+        return self.__credit
         
     # def get_student_list(self):
     #     return self.__student_list
@@ -261,16 +264,14 @@ def get_student_record(student: Student):
 
 # TODO 12 : function สำหรับคำนวณเกรดเฉลี่ยของนักศึกษา โดยรับ instance ของ student
 def get_student_GPS(student: Student):
-    grades: list[int] = []
+    total_weight = 0
+    weighted_sum = 0
     matched_enrollments = search_subject_that_student_enrolled(student)
     for enrollment in matched_enrollments:
-        grades.append(enrollment.get_grade().value)
+        total_weight += enrollment.get_subject().get_credit()
+        weighted_sum += enrollment.get_subject().get_credit() * enrollment.get_grade().value
         
-    grades_sum = 0
-    for grade in grades:
-        grades_sum += grade
-        
-    return grades_sum / len(grades)
+    return weighted_sum / total_weight
 
 # ค้นหานักศึกษาลงทะเบียน โดยรับเป็น รหัสวิชา และคืนค่าเป็น dictionary {รหัส นศ. : ชื่อ นศ.}
 def list_student_enrolled_in_subject(subject_id: str):
