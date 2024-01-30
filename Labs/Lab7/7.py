@@ -4,37 +4,17 @@ from enum import Enum
 from abc import ABC, abstractproperty, abstractmethod
 
 
-class AccountType(Enum):
-    Undefined = -1
-    Savings = 0
-    Current = 1
-    FixedDeposit = 1
-
-
-class CardType(Enum):
-    Undefined = -1
-    ATM = 0
-    Debit = 1
-
-    
 class TransactionType(Enum):
     Deposit = 0
     Withdrawal = 1
     Transfer = 2
 
 
-class TerminalType(Enum):
-    Undefined  = -1
-    ATM = 0
-    EDC = 1
-    Counter = 2
-
-
 class Bank:
     def __init__(self, name: str):
         self.__name: str = name
         self.__customers: List[Customer] = []
-        self.__terminals: List[Terminal] = []
+        self.__atms: List[Atm] = []
     
     def add_customer(self, customer: Customer) -> bool:
         if (isinstance(customer, Customer)):
@@ -42,17 +22,17 @@ class Bank:
             return True
         return False
 
-    def add_terminal(self, terminal: Terminal) -> bool:
-        if (isinstance(terminal, Terminal)):
-            self.__terminals.append(terminal)
+    def add_atms(self, terminal: Atm) -> bool:
+        if (isinstance(terminal, Atm)):
+            self.__atms.append(terminal)
             return True
         return False
     
     def get_customers(self) -> List[Customer]:
         return self.__customers
     
-    def get_terminals(self) -> List[Terminal]:
-        return self.__terminals
+    def get_atms(self) -> List[Atm]:
+        return self.__atms
     
     def get_customer_by_citizen_id(self, citizen_id: str) -> Customer | None:
         for customer in self.__customers:
@@ -66,8 +46,8 @@ class Bank:
                 return customer
         return None
     
-    def get_terminal_by_id(self, id: str) -> Terminal | None:
-        for terminal in self.__terminals:
+    def get_atm_by_id(self, id: str) -> Atm | None:
+        for terminal in self.__atms:
             if (terminal.get_id() == id):
                 return terminal
         return None
@@ -114,19 +94,19 @@ class Customer:
 class Merchant(Customer):
     def __init__(self, citizen_id: str, name: str) -> None:
         super().__init__(citizen_id, name)
-        self.__edcs: List[TerminalEdc] = []
+        self.__edcs: List[Edc] = []
 
-    def add_edc(self, edc: TerminalEdc):
-        if isinstance(edc, TerminalEdc):
+    def add_edc(self, edc: Edc):
+        if isinstance(edc, Edc):
             self.__edcs.append(edc)
     
-    def get_edc_by_id(self, id: str) -> TerminalEdc | None:
+    def get_edc_by_id(self, id: str) -> Edc | None:
         for edc in self.__edcs:
             if (edc.get_id() == id):
                 return edc
         return None
 
-    def get_edcs(self) -> List[TerminalEdc]:
+    def get_edcs(self) -> List[Edc]:
         return self.__edcs
     
     def deduct(self, origin: Account, amount: int, destination: Account):
@@ -134,7 +114,7 @@ class Merchant(Customer):
             (isinstance(amount, int)) and (amount > 0) and (amount <= origin.get_balance()):
                 transaction = Transaction(TransactionType.Transfer, amount, destination)
                 origin.make_transaction(transaction)
-                destination.make_transaction(transaction)
+                # destination.make_transaction(transaction)
                 return True
 
 class Account(ABC):
@@ -190,7 +170,6 @@ class Account(ABC):
     
     def make_transaction(self, transaction: Transaction) -> bool:
         if (isinstance(transaction, Transaction)):
-            self.__transactions.append(transaction)
             transaction_type = transaction.get_type()
             if (transaction_type == TransactionType.Deposit):
                 self.__balance += transaction.get_amount()
@@ -201,9 +180,10 @@ class Account(ABC):
                     transaction.set_incoming_transfer(True)
                     self.__balance += transaction.get_amount()
                 else:
+                    transaction.get_destination().make_transaction(Transaction(TransactionType.Transfer, transaction.get_amount(), transaction.get_destination()))
                     transaction.set_incoming_transfer(False)
                     self.__balance -= transaction.get_amount()
-                    transaction.get_destination().make_transaction(transaction)
+            self.__transactions.append(transaction)
             transaction.record_balance(self.__balance)
             return True
         return False
@@ -287,36 +267,17 @@ class CardDebit(CardAtm):
     yearly_fee = 300
 
 
-class Terminal:
-    @property
-    @abstractmethod
-    def type(self) -> TerminalType:
-        pass
-    
+class Atm:
+    session_limit_withdrawal = 20000
+    session_limit_transfer = 100000
     
     def __init__(self, _bank: Bank, id: str, balance: int) -> None:
         self.__bank: Bank = _bank
         self.__id: str = id
         self._balance: int = balance
         
-    def __find_card_from_id(self, card_id: str) -> Card | None:
-        for customer in self.__bank.get_customers():
-            for account in customer.get_accounts():
-                if isinstance(account, AccountSavings):
-                    card = account.get_card()
-                    if (isinstance(card, Card)) and (card.get_id() == card_id):
-                        return account.get_card()
-        return None
-    
     def get_id(self):
         return self.__id
-
-
-class TerminalAtm(Terminal):
-    session_limit_withdrawal = 20000
-    session_limit_transfer = 100000
-    def type(self) -> TerminalType:
-        return TerminalType.ATM
     
     # @staticmethod
     def authenticate(self, card: Card, pin: str):
@@ -359,13 +320,17 @@ class TerminalAtm(Terminal):
         return False
 
 
-class TerminalEdc(Terminal):
+class Edc:
     def type(self) -> TerminalType:
         return TerminalType.EDC
     
-    
     def __init__(self, _bank: Bank, id: str, balance: int) -> None:
-        super().__init__(_bank, id, balance)
+        self.__bank: Bank = _bank
+        self.__id: str = id
+        self._balance: int = balance
+        
+    def get_id(self):
+        return self.__id
         
     def deduct(self, card: CardDebit, amount: int, destination: Account):
         origin = card.get_account()
@@ -398,7 +363,7 @@ class Transaction:
             else:
                 sign = '-'
                 
-        return f'{self.__type.name[0]}:{sign}{self.__amount}-{self.__balance}'
+        return f'{self.__type.name[0]} {sign}{self.__amount} => {self.__balance}'
     
     def record_balance(self, balance: int) -> bool:
         if (isinstance(balance, int)) and (balance >= 0):
@@ -486,18 +451,18 @@ if isinstance(tops, Customer):
 
 # TODO 7.2 : สร้าง Instance ของเครื่อง ATM
 
-scb.add_terminal(TerminalAtm(scb, '1001', 1000000))
-scb.add_terminal(TerminalAtm(scb, '1002', 200000))
+scb.add_atms(Atm(scb, '1001', 1000000))
+scb.add_atms(Atm(scb, '1002', 200000))
 
 # TODO 7.3 : สร้าง Instance ของ Seller และใส่เครื่อง EDC ใน Seller 
 
 kfc = scb.get_customer_by_citizen_id('9-0000-00000-01-0')
 if isinstance(kfc, Merchant):
-    kfc.add_edc(TerminalEdc(scb, '2101', 0))
+    kfc.add_edc(Edc(scb, '2101', 0))
 
 tops = scb.get_customer_by_citizen_id('9-0000-00000-02-0')
 if isinstance(tops, Merchant):
-    tops.add_edc(TerminalEdc(scb, '2201', 0))
+    tops.add_edc(Edc(scb, '2201', 0))
 
 # TODO 7.4 : สร้าง method ฝาก โดยใช้ __add__ ถอน โดยใช้ __sub__ และ โอนโดยใช้ __rshift__
 # TODO     : ทดสอบการ ฝาก ถอน โอน โดยใช้ + - >> กับบัญชีแต่ละประเภท
@@ -521,9 +486,9 @@ if isinstance(tops, Merchant):
 # Deposit 1000
 # Harry account after deposit :  21000
 
-atm_machine = scb.get_terminal_by_id('1001')
+atm_machine = scb.get_atm_by_id('1001')
 harry_account = scb.get_account_from_card_id('12345')
-if isinstance(harry_account, AccountSavings) and isinstance(atm_machine, TerminalAtm):
+if isinstance(harry_account, AccountSavings) and isinstance(atm_machine, Atm):
     atm_card = harry_account.get_card()
     if (atm_card):
         print("Test Case #1")
@@ -548,9 +513,9 @@ if isinstance(harry_account, AccountSavings) and isinstance(atm_machine, Termina
 # withdraw 1000
 # Hermione account after withdraw :  1000
 
-atm_machine = scb.get_terminal_by_id('1002')
+atm_machine = scb.get_atm_by_id('1002')
 hermione_account1 = scb.get_account_from_card_id('12346')
-if isinstance(hermione_account1, AccountSavings) and isinstance(atm_machine, TerminalAtm):
+if isinstance(hermione_account1, AccountSavings) and isinstance(atm_machine, Atm):
     atm_card = hermione_account1.get_card()
     if (atm_card):
         print("Test Case #2")
@@ -661,3 +626,89 @@ if (hermione):
         for transaction in account:
             print(transaction)
         print('')
+
+
+# # overload test
+
+
+# # Test case #1 : ทดสอบ การฝาก จากเครื่อง ATM โดยใช้บัตร ATM ของ harry
+# # ต้องมีการ insert_card ก่อน ค้นหาเครื่อง atm เครื่องที่ 1 และบัตร atm ของ harry
+# # และเรียกใช้ function หรือ method deposit จากเครื่อง ATM และเรียกใช้ + จาก account
+# # ผลที่คาดหวัง :
+# # Test Case #1
+# # Harry's ATM No :  12345
+# # Harry's Account No :  1234567890
+# # Success
+# # Harry account before deposit :  20000
+# # Deposit 1000
+# # Harry account after deposit :  21000
+
+# atm_machine = scb.get_atm_by_id('1001')
+# harry_account = scb.get_account_from_card_id('12345')
+# if isinstance(harry_account, AccountSavings) and isinstance(atm_machine, TerminalAtm):
+#     atm_card = harry_account.get_card()
+#     if (atm_card):
+#         print("Test Case #1")
+#         print("Harry's ATM No : ", atm_card.get_id())
+#         print("Harry's Account No : ", harry_account.get_id())
+#         print(atm_machine.authenticate(atm_card,  "1234"))
+#         print("Harry account before deposit : ", harry_account.get_balance())
+#         print("Deposit 1000")
+#         print(harry_account + 1000)
+#         print("Harry account after deposit : ", harry_account.get_balance())
+#         print("")
+
+# # Test case #2 : ทดสอบ การถอน จากเครื่อง ATM โดยใช้บัตร ATM ของ hermione
+# # ต้องมีการ insert_card ก่อน ค้นหาเครื่อง atm เครื่องที่ 2 และบัตร atm ของ hermione
+# # และเรียกใช้ function หรือ method withdraw จากเครื่อง ATM และเรียกใช้ - จาก account
+# # ผลที่คาดหวัง :
+# # Test Case #2
+# # Hermione's ATM No :  12346
+# # Hermione's Account No :  0987654321
+# # Success
+# # Hermione account before withdraw :  2000
+# # withdraw 1000
+# # Hermione account after withdraw :  1000
+
+# atm_machine = scb.get_atm_by_id('1002')
+# hermione_account1 = scb.get_account_from_card_id('12346')
+# if isinstance(hermione_account1, AccountSavings) and isinstance(atm_machine, TerminalAtm):
+#     atm_card = hermione_account1.get_card()
+#     if (atm_card):
+#         print("Test Case #2")
+#         print("Hermione's ATM No : ", atm_card.get_id())
+#         print("Hermione's Account No : ", hermione_account1.get_id())
+#         print(atm_machine.authenticate(atm_card, "1234"))
+#         print("Hermione account before withdraw : ",hermione_account1.get_balance())
+#         print("withdraw 1000")
+#         print(hermione_account1 - 1000)
+#         print("Hermione account after withdraw : ",hermione_account1.get_balance())
+#         print("")
+
+
+# # Test case #3 : ทดสอบการโอนเงินจากบัญชีของ Harry ไปยัง Hermione จำนวน 10000 บาท ที่เคาน์เตอร์
+# # ให้เรียกใช้ method ที่ทำการโอนเงิน
+# # ผลที่คาดหวัง
+# # Test Case #3
+# # Harry's Account No :  1234567890
+# # Hermione's Account No :  0987654321
+# # Harry account before transfer :  21000
+# # Hermione account before transfer :  1000
+# # Harry account after transfer :  11000
+# # Hermione account after transfer :  11000
+
+# harry_account = scb.get_account_from_card_id('12345')
+# hermione_account1 = scb.get_account_from_card_id('12346')
+# if isinstance(hermione_account1, AccountSavings) and (harry_account):
+#     print("Test Case #3")
+#     print("Harry's Account No : ",harry_account.get_id())
+#     print("Hermione's Account No : ", hermione_account1.get_id())
+#     print("Harry account before transfer : ",harry_account.get_balance())
+#     print("Hermione account before transfer : ",hermione_account1.get_balance())
+#     # harry_account.transfer("0000", 10000, hermione_account1)
+#     # harry_account.make_transaction(Transaction(TransactionType.Transfer, 10000, hermione_account1))
+#     print(harry_account >> (10000, hermione_account1))
+#     print("Harry account after transfer : ",harry_account.get_balance())
+#     print("Hermione account after transfer : ",hermione_account1.get_balance())
+#     print("")
+
