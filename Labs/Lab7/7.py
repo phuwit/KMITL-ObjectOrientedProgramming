@@ -306,8 +306,9 @@ class Atm:
 
 
 class Edc:
-    def __init__(self, _bank: Bank, id: str, balance: int) -> None:
+    def __init__(self, _bank: Bank, merchant: Merchant, id: str, balance: int) -> None:
         self.__bank: Bank = _bank
+        self.__merchant: Merchant = merchant
         self.__id: str = id
         self._balance: int = balance
         
@@ -316,12 +317,7 @@ class Edc:
         
     def deduct(self, card: CardDebit, amount: int, destination: Account):
         origin = card.get_account()
-        if (isinstance(origin, Account)) and (isinstance(destination, Account)) and \
-            (isinstance(amount, int)) and (amount > 0) and (amount <= origin.get_balance()) and \
-            (isinstance(card, Card)) and (card.adjust_quota(-amount)):
-                transaction = Transaction(TransactionType.Transfer, amount, destination)
-                origin.make_transaction(transaction)
-                return True
+        self.__merchant.deduct(origin, amount, destination)
 
 
 class Transaction:
@@ -440,11 +436,11 @@ scb.add_atms(Atm(scb, '1002', 200000))
 
 kfc = scb.get_customer_by_citizen_id('9-0000-00000-01-0')
 if isinstance(kfc, Merchant):
-    kfc.add_edc(Edc(scb, '2101', 0))
+    kfc.add_edc(Edc(scb, kfc, '2101', 0))
 
 tops = scb.get_customer_by_citizen_id('9-0000-00000-02-0')
 if isinstance(tops, Merchant):
-    tops.add_edc(Edc(scb, '2201', 0))
+    tops.add_edc(Edc(scb, tops, '2201', 0))
 
 # TODO 7.4 : สร้าง method ฝาก โดยใช้ __add__ ถอน โดยใช้ __sub__ และ โอนโดยใช้ __rshift__
 # TODO     : ทดสอบการ ฝาก ถอน โอน โดยใช้ + - >> กับบัญชีแต่ละประเภท
