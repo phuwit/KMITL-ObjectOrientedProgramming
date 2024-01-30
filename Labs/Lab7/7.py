@@ -75,8 +75,16 @@ class Bank:
     def get_account_from_card_id(self, id: str) -> Account | None:
         for customer in self.__customers:
             for account in customer.get_accounts():
-                card = account.get_card()
-                if isinstance(card, Card) and (card.get_id() == id):
+                if isinstance(account, AccountSavings):
+                    card = account.get_card()
+                    if isinstance(card, Card) and (card.get_id() == id):
+                        return account
+        return None
+    
+    def get_account_from_account_id(self, id: str) -> Account | None:
+        for customer in self.__customers:
+            for account in customer.get_accounts():
+                if(account.get_id() == id):
                     return account
         return None
     
@@ -144,17 +152,38 @@ class Account(ABC):
         self.__customer: Customer = customer
         self.__id: str = id
         self.__balance: int = 0
-        self.__card: Card | None = None
+        
         self.__transactions: List[Transaction] = []
+        
+    def __iter__(self):
+        for transaction in self.__transactions:
+            yield transaction
+        
+    def __add__(self, amount: int) -> bool:
+        if (isinstance(amount, int)):
+            self.make_transaction(Transaction(TransactionType.Deposit, amount, self))
+            return True
+        return False
+    
+    def __sub__(self, amount: int) -> bool:
+        if (isinstance(amount, int)):
+            self.make_transaction(Transaction(TransactionType.Withdrawal, amount, self))
+            return True
+        return False
+        
+    
+    def __rshift__(self, tuple: tuple[int, Account]) -> bool:
+        if (isinstance(tuple[0], int)) and (isinstance(tuple[1], Account)):
+            self.make_transaction(Transaction(TransactionType.Transfer, tuple[0], tuple[1]))
+            # tuple[1].make_transaction(Transaction(TransactionType.Transfer, tuple[0], tuple[1]))
+            return True
+        return False
     
     def get_id(self) -> str:
         return self.__id
     
     def get_balance(self) -> int:
         return self.__balance
-    
-    def get_card(self) -> Card | None:
-        return self.__card
     
     def get_transactions(self) -> List[Transaction]:
         return self.__transactions
@@ -174,6 +203,7 @@ class Account(ABC):
                 else:
                     transaction.set_incoming_transfer(False)
                     self.__balance -= transaction.get_amount()
+                    transaction.get_destination().make_transaction(transaction)
             transaction.record_balance(self.__balance)
             return True
         return False
@@ -186,14 +216,18 @@ class AccountSavings(Account):
     def type(self):
         return AccountType.Savings
     
+    def __init__(self, customer: Customer, id: str) -> None:
+        super().__init__(customer, id)
+        self.__card: Card | None = None
+    
     def set_card(self, card: Card) -> bool:
         if (isinstance(card, Card)):
             self.__card = card
             return True
         return False
-
-    def __init__(self, customer: Customer, id: str) -> None:
-        super().__init__(customer, id)
+    
+    def get_card(self) -> Card | None:
+        return self.__card
 
 
 class AccountFixedDeposit(Account):
@@ -209,26 +243,15 @@ class AccountFixedDeposit(Account):
 
 
 class Card(ABC):
-    @property
-    @abstractmethod
-    def type(self) -> CardType:
-        pass
-    
-    @property
-    @abstractmethod
-    def daily_transaction_limit(self) -> int:
-        pass
-    
-    @property
-    @abstractmethod
-    def yearly_fee(self) -> int:
-        pass
+    type: CardType = CardType.Undefined
+    daily_transaction_limit: int = -1
+    yearly_fee: int = -1
     
     def __init__(self, account: Account, id: str, pin: str) -> None:
         self.__account: Account = account
         self.__id: str = id
         self.__pin: str = pin
-        self.__transaction_quota = self.daily_transaction_limit
+        self.__transaction_quota = self.daily_transaction_limit  # Fix: Remove parentheses
         
     def validate_pin(self, pin: str) -> bool:
         if (self.__pin == pin):
@@ -242,8 +265,9 @@ class Card(ABC):
         return self.__account
     
     def adjust_quota(self, amount: int) -> bool:
-        if (self.__transaction_quota + amount >= 0):
-            self.__transaction_quota += amount
+        new_quota = self.__transaction_quota + amount
+        if (new_quota >= 0):
+            self.__transaction_quota = new_quota
             return True
         return False
     
@@ -252,22 +276,15 @@ class Card(ABC):
         
 
 class CardAtm(Card):
-    def type(self):
-        return CardType.ATM
-    
-    def daily_transaction_limit(self):
-        return 40000
-    
-    def yearly_fee(self):
-        return 150
-    
-    
+    type = CardType.ATM
+    daily_transaction_limit = 40000
+    yearly_fee = 150
+
+
 class CardDebit(CardAtm):
-    def type(self):
-        return CardType.Debit
-    
-    def yearly_fee(self):
-        return 300
+    type = CardType.ATM
+    daily_transaction_limit = 40000
+    yearly_fee = 300
 
 
 class Terminal:
@@ -285,9 +302,10 @@ class Terminal:
     def __find_card_from_id(self, card_id: str) -> Card | None:
         for customer in self.__bank.get_customers():
             for account in customer.get_accounts():
-                card = account.get_card()
-                if (isinstance(card, Card)) and (card.get_id() == card_id):
-                    return account.get_card()
+                if isinstance(account, AccountSavings):
+                    card = account.get_card()
+                    if (isinstance(card, Card)) and (card.get_id() == card_id):
+                        return account.get_card()
         return None
     
     def get_id(self):
@@ -308,34 +326,36 @@ class TerminalAtm(Terminal):
 
     # @staticmethod
     def deposit(self, account: Account, amount: int) -> bool:
-        card = account.get_card()
-        if (isinstance(account, Account)) and (isinstance(amount, int)) and (amount > 0) and \
-            (isinstance(card, Card)) and (card.adjust_quota(amount)):
-                self._balance += amount
-                account.make_transaction(Transaction(TransactionType.Deposit, amount, account))
-                return True
+        if (isinstance(account, AccountSavings)):
+            card = account.get_card()
+            if (isinstance(amount, int)) and (amount > 0) and \
+                (isinstance(card, Card)) and (card.adjust_quota(amount)):
+                    self._balance += amount
+                    account.make_transaction(Transaction(TransactionType.Deposit, amount, account))
+                    return True
         return False
 
     # @staticmethod
     def withdraw(self, account: Account, amount: int) -> bool:
-        card = account.get_card()
-        if (isinstance(account, Account)) and (isinstance(amount, int)) and (amount > 0) and \
-            (amount <= account.get_balance()) and (isinstance(card, Card)) and (card.adjust_quota(-amount)):
-                self._balance += amount
-                account.make_transaction(Transaction(TransactionType.Withdrawal, amount, account))
-                return True
+        if (isinstance(account, AccountSavings)):
+            card = account.get_card()
+            if (isinstance(account, Account)) and (isinstance(amount, int)) and (amount > 0) and \
+                (amount <= account.get_balance()) and (isinstance(card, Card)) and (card.adjust_quota(-amount)):
+                    self._balance += amount
+                    account.make_transaction(Transaction(TransactionType.Withdrawal, amount, account))
+                    return True
         return False
         
     # @staticmethod
     def transfer(self, origin: Account, destination: Account, amount: int) -> bool:
-        card = origin.get_card()
-        if (isinstance(origin, Account)) and (isinstance(destination, Account)) and \
-            (isinstance(amount, int)) and (amount > 0) and (amount <= origin.get_balance()) and \
-            (isinstance(card, Card)) and (card.adjust_quota(-amount)):
-                transaction = Transaction(TransactionType.Transfer, amount, destination)
-                origin.make_transaction(transaction)
-                destination.make_transaction(transaction)
-                return True
+        if (isinstance(origin, AccountSavings)):
+            card = origin.get_card()
+            if (isinstance(origin, Account)) and (isinstance(destination, Account)) and \
+                (isinstance(amount, int)) and (amount > 0) and (amount <= origin.get_balance()) and \
+                (isinstance(card, Card)) and (card.adjust_quota(-amount)):
+                    transaction = Transaction(TransactionType.Transfer, amount, destination)
+                    origin.make_transaction(transaction)
+                    return True
         return False
 
 
@@ -354,7 +374,6 @@ class TerminalEdc(Terminal):
             (isinstance(card, Card)) and (card.adjust_quota(-amount)):
                 transaction = Transaction(TransactionType.Transfer, amount, destination)
                 origin.make_transaction(transaction)
-                destination.make_transaction(transaction)
                 return True
 
 
@@ -445,7 +464,7 @@ if isinstance(harry, Customer):
         harry_account.make_transaction(Transaction(TransactionType.Deposit, 20000, harry_account))
         harry_account.set_card(CardAtm(harry_account, '12345', '1234'))
 
-hermione = scb.get_customer_by_citizen_id('1-1101-12345-12-0')
+hermione = scb.get_customer_by_citizen_id('1-1101-12345-13-0')
 if isinstance(hermione, Customer):
     hermione_account1 = AccountSavings(hermione, '0987654321')
     if isinstance(hermione_account1, AccountSavings):
@@ -504,7 +523,7 @@ if isinstance(tops, Merchant):
 
 atm_machine = scb.get_terminal_by_id('1001')
 harry_account = scb.get_account_from_card_id('12345')
-if (harry_account) and isinstance(atm_machine, TerminalAtm):
+if isinstance(harry_account, AccountSavings) and isinstance(atm_machine, TerminalAtm):
     atm_card = harry_account.get_card()
     if (atm_card):
         print("Test Case #1")
@@ -531,7 +550,7 @@ if (harry_account) and isinstance(atm_machine, TerminalAtm):
 
 atm_machine = scb.get_terminal_by_id('1002')
 hermione_account1 = scb.get_account_from_card_id('12346')
-if (hermione_account1) and isinstance(atm_machine, TerminalAtm):
+if isinstance(hermione_account1, AccountSavings) and isinstance(atm_machine, TerminalAtm):
     atm_card = hermione_account1.get_card()
     if (atm_card):
         print("Test Case #2")
@@ -558,7 +577,7 @@ if (hermione_account1) and isinstance(atm_machine, TerminalAtm):
 
 harry_account = scb.get_account_from_card_id('12345')
 hermione_account1 = scb.get_account_from_card_id('12346')
-if (hermione_account1) and (harry_account):
+if isinstance(hermione_account1, AccountSavings) and (harry_account):
     print("Test Case #3")
     print("Harry's Account No : ",harry_account.get_id())
     print("Hermione's Account No : ", hermione_account1.get_id())
@@ -582,10 +601,10 @@ if (hermione_account1) and (harry_account):
 # KFC account after paid :  500
 # Hermione account after paid :  10500
 
-hermione_account1 = scb.get_account_from_card_id('0987654321')
-if (hermione_account1):
+hermione_account1 = scb.get_account_from_account_id('0987654321')
+if isinstance(hermione_account1, AccountSavings):
     debit_card = hermione_account1.get_card()
-    kfc_account = scb.get_account_from_card_id('0000000321')
+    kfc_account = scb.get_account_from_account_id('0000000321')
     kfc = scb.get_customer_by_name('KFC')
     if isinstance(kfc, Merchant) and isinstance(debit_card, CardDebit) and (kfc_account):
         edc = kfc.get_edc_by_id('2101')
@@ -613,10 +632,10 @@ if (hermione_account1):
 # Tops account after paid :  500
 # Hermione account after paid :  10000
 
-hermione_account1 = scb.get_account_from_card_id('0987654321')
-if (hermione_account1):
+hermione_account1 = scb.get_account_from_account_id('0987654321')
+if isinstance(hermione_account1, AccountSavings):
     debit_card = hermione_account1.get_card()
-    tops_account = scb.get_account_from_card_id('0000000322')
+    tops_account = scb.get_account_from_account_id('0000000322')
     tops = scb.get_customer_by_name('Tops')
     if (hermione_account1) and (tops_account) and isinstance(tops, Merchant):
         print("Test Case #5")
@@ -630,12 +649,15 @@ if (hermione_account1):
         print("")
 
 
-# Test case #7 : แสดง transaction ของ Hermione ทั้งหมด โดยใช้ for loop 
+# Test case #6 : แสดง transaction ของ Hermione ทั้งหมด โดยใช้ for loop 
 
+print("Test Case #6")
 hermione = scb.get_customer_by_citizen_id('1-1101-12345-13-0')
+# print(hermione)
 if (hermione):
+    # print(hermione.get_accounts())
     for account in hermione.get_accounts():
-        print(f'Account ID : {account.get_id()}')
-        for transaction in account.get_transactions():
+        print(f'Account ID: {account.get_id()}')
+        for transaction in account:
             print(transaction)
-        print('=======================================')
+        print('')
