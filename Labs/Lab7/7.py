@@ -120,11 +120,6 @@ class Merchant(Customer):
 class Account(ABC):
     @property
     @abstractmethod
-    def type(self) -> AccountType:
-        pass
-    
-    @property
-    @abstractmethod
     def interest_rate(self) -> float:
         pass
     
@@ -193,9 +188,6 @@ class AccountSavings(Account):
     def interest_rate(self):
         return 0.5
     
-    def type(self):
-        return AccountType.Savings
-    
     def __init__(self, customer: Customer, id: str) -> None:
         super().__init__(customer, id)
         self.__card: Card | None = None
@@ -214,16 +206,11 @@ class AccountFixedDeposit(Account):
     def interest_rate(self):
         return 2.5
     
-    def type(self):
-        return AccountType.Savings
-    
-    
     def __init__(self, customer: Customer, id: str) -> None:
         super().__init__(customer, id)
 
 
 class Card(ABC):
-    type: CardType = CardType.Undefined
     daily_transaction_limit: int = -1
     yearly_fee: int = -1
     
@@ -256,13 +243,11 @@ class Card(ABC):
         
 
 class CardAtm(Card):
-    type = CardType.ATM
     daily_transaction_limit = 40000
     yearly_fee = 150
 
 
 class CardDebit(CardAtm):
-    type = CardType.ATM
     daily_transaction_limit = 40000
     yearly_fee = 300
 
@@ -321,9 +306,6 @@ class Atm:
 
 
 class Edc:
-    def type(self) -> TerminalType:
-        return TerminalType.EDC
-    
     def __init__(self, _bank: Bank, id: str, balance: int) -> None:
         self.__bank: Bank = _bank
         self.__id: str = id
